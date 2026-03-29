@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Planilha do Caminhão</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232735;
+    --border: #2e3345;
+    --text: #e8eaf0;
+    --text2: #8b90a5;
+    --accent: #4a9eff;
+    --accent2: #3a7fd4;
+    --green: #34d399;
+    --green-bg: rgba(52,211,153,0.1);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.1);
+    --yellow: #fbbf24;
+    --yellow-bg: rgba(251,191,36,0.1);
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 100px;
+    overflow-x: hidden;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1e2a4a 0%, #162035 100%);
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header h1 span { font-size: 20px; }
+
+  .header-sub {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--bg);
+    position: sticky;
+    top: 72px;
+    z-index: 99;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: var(--surface);
+    color: var(--text2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 12px rgba(74,158,255,0.3);
+  }
+
+  .content { padding: 16px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .form-row.full { grid-template-columns: 1fr; }
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+
+  .form-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input, .form-group select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-group input::placeholder { color: var(--text2); opacity: 0.5; }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 12px rgba(74,158,255,0.25);
+  }
+
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-danger {
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid rgba(248,113,113,0.2);
+  }
+
+  .btn-success {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(52,211,153,0.2);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-small {
+    padding: 8px 12px;
+    font-size: 12px;
+    width: auto;
+    border-radius: 8px;
+  }
+
+  /* Records list */
+  .record {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+
+  .record-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .record-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .record-total {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .record-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .record-detail {
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .record-detail strong {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .record-fuel {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 16px;
+  }
+
+  .record-fuel .record-detail { font-size: 10px; }
+
+  .record-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Summary */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .summary-item {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .summary-item.highlight {
+    grid-column: span 2;
+    background: linear-gradient(135deg, rgba(74,158,255,0.1) 0%, rgba(52,211,153,0.1) 100%);
+    border-color: rgba(74,158,255,0.2);
+  }
+
+  .summary-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .summary-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .summary-value.green { color: var(--green); }
+  .summary-value.red { color: var(--red); }
+  .summary-value.blue { color: var(--accent); }
+  .summary-value.yellow { color: var(--yellow); }
+
+  /* Settings */
+  .settings-note {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Config bar */
+  .config-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .config-bar select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text2);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--green);
+    color: #0f1117;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    z-index: 200;
+    transition: transform 0.3s;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Quinzena selector */
+  .quinzena-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .quinzena-bar select {
+    flex: 1;
+  }
+
+  .btn-new-q {
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  @media print {
+    body { background: white; color: black; padding: 20px; }
+    .header, .tabs, .config-bar, .btn, .record-actions, .toast { display: none; }
+    .card { border: 1px solid #ccc; break-inside: avoid; }
+    .summary-item { border: 1px solid #ccc; }
+    .record { border: 1px solid #ccc; }
+    .content { padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>🚛</span> Planilha do Caminhão</h1>
+  <div class="header-sub" id="headerPlate">CKD2E98 — VILSON</div>
+</div>
+
+<div class="config-bar">
+  <div class="quinzena-bar" style="width:100%">
+    <span>Quinzena:</span>
+    <select id="quinzenaSelect" onchange="switchQuinzena()"></select>
+    <button class="btn-new-q" onclick="newQuinzena()">+ Nova</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('registrar')">Registrar</button>
+  <button class="tab" onclick="showTab('registros')">Registros</button>
+  <button class="tab" onclick="showTab('resumo')">Resumo</button>
+  <button class="tab" onclick="showTab('config')">Config</button>
+</div>
+
+<div class="content" id="content"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+let currentTab = 'registrar';
+let data = JSON.parse(localStorage.getItem('caminhao_data') || 'null') || {
+  config: { placa: 'CKD2E98', motorista: 'VILSON', kmBase: 100, valorKm: 2, diariaDefault: 460, adiantamento: 0 },
+  quinzenas: [],
+  currentQ: null
+};
+
+function save() {
+  localStorage.setItem('caminhao_data', JSON.stringify(data));
+}
+
+function getQ() {
+  if (data.currentQ === null || !data.quinzenas[data.currentQ]) return null;
+  return data.quinzenas[data.currentQ];
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Quinzena management ──
+function newQuinzena() {
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.toLocaleString('pt-BR', { month: 'short' }).replace('.','');
+  const year = now.getFullYear();
+  const label = day <= 15 ? `1ª Quinz. ${month} ${year}` : `2ª Quinz. ${month} ${year}`;
+  
+  data.quinzenas.push({ label, records: [], abastecimentos: [] });
+  data.currentQ = data.quinzenas.length - 1;
+  save();
+  updateQuinzenaSelect();
+  render();
+  toast('Nova quinzena criada!');
+}
+
+function switchQuinzena() {
+  data.currentQ = parseInt(document.getElementById('quinzenaSelect').value);
+  save();
+  render();
+}
+
+function updateQuinzenaSelect() {
+  const sel = document.getElementById('quinzenaSelect');
+  sel.innerHTML = data.quinzenas.map((q, i) =>
+    `<option value="${i}" ${i === data.currentQ ? 'selected' : ''}>${q.label}</option>`
+  ).join('');
+}
+
+// ── Init ──
+if (data.quinzenas.length === 0) newQuinzena();
+else updateQuinzenaSelect();
+
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['registrar','registros','resumo','config'][i] === tab);
+  });
+  render();
+}
+
+function render() {
+  const c = document.getElementById('content');
+  document.getElementById('headerPlate').textContent = `${data.config.placa} — ${data.config.motorista}`;
+  
+  switch(currentTab) {
+    case 'registrar': c.innerHTML = renderRegistrar(); break;
+    case 'registros': c.innerHTML = renderRegistros(); break;
+    case 'resumo': c.innerHTML = renderResumo(); break;
+    case 'config': c.innerHTML = renderConfig(); break;
+  }
+}
+
+// ── Registrar tab ──
+function renderRegistrar() {
+  const q = getQ();
+  const lastKm = q && q.records.length > 0 ? q.records[q.records.length - 1].kmFinal : '';
+  const today = new Date().toISOString().split('T')[0];
+  
+  return `
+    <div class="card">
+      <div class="card-title">📍 Registro de Viagem</div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="regData" value="${today}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>KM Inicial</label>
+          <input type="number" id="regKmI" placeholder="ex: 45000" value="${lastKm}" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label>KM Final</label>
+          <input type="number" id="regKmF" placeholder="ex: 45300" inputmode="numeric">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Diária (R$)</label>
+          <input type="number" id="regDiaria" value="${data.config.diariaDefault}" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Emp. Caminhão</label>
+          <input type="text" id="regEmp" placeholder="ex: 14/24">
+        </div>
+      </div>
+      <div style="margin-top:4px">
+        <button class="btn btn-primary" onclick="addRecord()">Salvar Registro</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⛽ Abastecimento</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Preço/Litro (R$)</label>
+          <input type="number" id="fuelPreco" placeholder="ex: 5.72" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Valor Total (R$)</label>
+          <input type="number" id="fuelTotal" placeholder="ex: 615.05" step="0.01" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="fuelData" value="${today}">
+        </div>
+      </div>
+      <div style="margin-top:4px">
+        <button class="btn btn-success" onclick="addFuel()">Salvar Abastecimento</button>
+      </div>
+    </div>
+  `;
+}
+
+function addRecord() {
+  const q = getQ();
+  if (!q) return;
+  
+  const dateVal = document.getElementById('regData').value;
+  const kmI = parseFloat(document.getElementById('regKmI').value);
+  const kmF = parseFloat(document.getElementById('regKmF').value);
+  const diaria = parseFloat(document.getElementById('regDiaria').value);
+  const emp = document.getElementById('regEmp').value;
+
+  if (!dateVal || isNaN(kmI) || isNaN(kmF) || isNaN(diaria)) {
+    toast('Preencha todos os campos!');
+    return;
+  }
+
+  const kmRodado = kmF - kmI;
+  const kmAdicional = Math.max(0, kmRodado - data.config.kmBase);
+  const valorAdicional = kmAdicional * data.config.valorKm;
+  const total = diaria + valorAdicional;
+
+  q.records.push({ date: dateVal, kmInicial: kmI, kmFinal: kmF, diaria, kmAdicional, valorAdicional, total, emp });
+  save();
+  toast('Registro salvo!');
+  render();
+}
+
+function addFuel() {
+  const q = getQ();
+  if (!q) return;
+
+  const dateVal = document.getElementById('fuelData').value;
+  const preco = parseFloat(document.getElementById('fuelPreco').value);
+  const total = parseFloat(document.getElementById('fuelTotal').value);
+
+  if (!dateVal || isNaN(preco) || isNaN(total)) {
+    toast('Preencha todos os campos!');
+    return;
+  }
+
+  const litros = total / preco;
+  q.abastecimentos.push({ date: dateVal, precoLitro: preco, valorTotal: total, litros });
+  save();
+  toast('Abastecimento salvo!');
+  render();
+}
+
+// ── Registros tab ──
+function renderRegistros() {
+  const q = getQ();
+  if (!q || (q.records.length === 0 && q.abastecimentos.length === 0)) {
+    return `<div class="empty-state"><div class="icon">📋</div><p>Nenhum registro nessa quinzena ainda.<br>Vá em "Registrar" pra adicionar.</p></div>`;
+  }
+
+  let html = '';
+
+  if (q.records.length > 0) {
+    html += `<div class="card-title" style="margin-bottom:10px">📍 VIAGENS (${q.records.length})</div>`;
+    q.records.forEach((r, i) => {
+      const d = new Date(r.date + 'T12:00:00');
+      const dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+      const kmRodado = r.kmFinal - r.kmInicial;
+      
+      html += `
+        <div class="record">
+          <div class="record-header">
+            <span class="record-date">${dateStr} ${r.emp ? '· ' + r.emp : ''}</span>
+            <span class="record-total">R$ ${r.total.toFixed(0)}</span>
+          </div>
+          <div class="record-details">
+            <div class="record-detail">KM Rodado<strong>${kmRodado}</strong></div>
+            <div class="record-detail">Diária<strong>R$ ${r.diaria.toFixed(0)}</strong></div>
+            <div class="record-detail">KM Adic.<strong>${r.kmAdicional} km</strong></div>
+          </div>
+          <div class="record-actions">
+            <button class="btn btn-danger btn-small" onclick="deleteRecord(${i})">Excluir</button>
+          </div>
+        </div>`;
+    });
+  }
+
+  if (q.abastecimentos.length > 0) {
+    html += `<div class="card-title" style="margin:16px 0 10px">⛽ ABASTECIMENTOS (${q.abastecimentos.length})</div>`;
+    q.abastecimentos.forEach((a, i) => {
+      const d = new Date(a.date + 'T12:00:00');
+      const dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+      
+      html += `
+        <div class="record">
+          <div class="record-header">
+            <span class="record-date">${dateStr}</span>
+            <span class="record-total" style="color:var(--yellow)">R$ ${a.valorTotal.toFixed(2)}</span>
+          </div>
+          <div class="record-details">
+            <div class="record-detail">Preço/L<strong>R$ ${a.precoLitro.toFixed(2)}</strong></div>
+            <div class="record-detail">Litros<strong>${a.litros.toFixed(1)}L</strong></div>
+            <div class="record-detail">Total<strong>R$ ${a.valorTotal.toFixed(2)}</strong></div>
+          </div>
+          <div class="record-actions">
+            <button class="btn btn-danger btn-small" onclick="deleteFuel(${i})">Excluir</button>
+          </div>
+        </div>`;
+    });
+  }
+
+  return html;
+}
+
+function deleteRecord(i) {
+  if (confirm('Excluir esse registro?')) {
+    getQ().records.splice(i, 1);
+    save(); render();
+    toast('Registro excluído');
+  }
+}
+
+function deleteFuel(i) {
+  if (confirm('Excluir esse abastecimento?')) {
+    getQ().abastecimentos.splice(i, 1);
+    save(); render();
+    toast('Abastecimento excluído');
+  }
+}
+
+// ── Resumo tab ──
+function renderResumo() {
+  const q = getQ();
+  if (!q || q.records.length === 0) {
+    return `<div class="empty-state"><div class="icon">📊</div><p>Adicione registros pra ver o resumo da quinzena.</p></div>`;
+  }
+
+  const totalDiarias = q.records.reduce((s, r) => s + r.total, 0);
+  const totalDiesel = q.abastecimentos.reduce((s, a) => s + a.valorTotal, 0);
+  const adiantamento = data.config.adiantamento || 0;
+  const valorLiquido = totalDiarias - totalDiesel - adiantamento;
+  const totalRodado = q.records.reduce((s, r) => s + (r.kmFinal - r.kmInicial), 0);
+  const mediaKmAdicional = q.records.reduce((s, r) => s + r.kmAdicional, 0) / q.records.length;
+  const mediaDiaria = totalDiarias / q.records.length;
+  const totalLitros = q.abastecimentos.reduce((s, a) => s + a.litros, 0);
+  const mediaKmLitro = totalLitros > 0 ? totalRodado / totalLitros : 0;
+
+  return `
+    <div class="summary-grid">
+      <div class="summary-item highlight">
+        <div class="summary-label">Valor Líquido</div>
+        <div class="summary-value green">R$ ${valorLiquido.toFixed(2)}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Total Diárias</div>
+        <div class="summary-value blue">R$ ${totalDiarias.toFixed(2)}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Total Diesel</div>
+        <div class="summary-value red">R$ ${totalDiesel.toFixed(2)}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Total Rodado</div>
+        <div class="summary-value">${totalRodado.toFixed(0)} km</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Dias Trabalhados</div>
+        <div class="summary-value">${q.records.length}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Média KM Adic./Dia</div>
+        <div class="summary-value">${mediaKmAdicional.toFixed(1)}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Média Diária (R$)</div>
+        <div class="summary-value">${mediaDiaria.toFixed(2)}</div>
+      </div>
+      ${totalLitros > 0 ? `
+      <div class="summary-item">
+        <div class="summary-label">Média KM/Litro</div>
+        <div class="summary-value yellow">${mediaKmLitro.toFixed(2)}</div>
+      </div>` : ''}
+      ${adiantamento > 0 ? `
+      <div class="summary-item">
+        <div class="summary-label">Adiantamento</div>
+        <div class="summary-value red">R$ ${adiantamento.toFixed(2)}</div>
+      </div>` : ''}
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" onclick="gerarPDF()">📄 Gerar PDF da Quinzena</button>
+    </div>
+    <div style="margin-top:8px">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Adiantamento (R$)</label>
+          <input type="number" id="adiantamento" value="${adiantamento}" inputmode="decimal" onchange="updateAdiantamento()">
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateAdiantamento() {
+  data.config.adiantamento = parseFloat(document.getElementById('adiantamento').value) || 0;
+  save();
+  render();
+}
+
+// ── PDF Generation ──
+function gerarPDF() {
+  const q = getQ();
+  if (!q) return;
+
+  const totalDiarias = q.records.reduce((s, r) => s + r.total, 0);
+  const totalDiesel = q.abastecimentos.reduce((s, a) => s + a.valorTotal, 0);
+  const adiantamento = data.config.adiantamento || 0;
+  const valorLiquido = totalDiarias - totalDiesel - adiantamento;
+  const totalRodado = q.records.reduce((s, r) => s + (r.kmFinal - r.kmInicial), 0);
+  const mediaKmAdicional = q.records.length > 0 ? q.records.reduce((s, r) => s + r.kmAdicional, 0) / q.records.length : 0;
+  const mediaDiaria = q.records.length > 0 ? totalDiarias / q.records.length : 0;
+  const totalLitros = q.abastecimentos.reduce((s, a) => s + a.litros, 0);
+  const mediaKmLitro = totalLitros > 0 ? totalRodado / totalLitros : 0;
+
+  let tableRows = q.records.map(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('pt-BR');
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${r.kmInicial.toFixed(0)}</td>
+      <td>${r.kmFinal.toFixed(0)}</td>
+      <td>R$ ${r.diaria.toFixed(0)}</td>
+      <td>${r.kmAdicional}</td>
+      <td>R$ ${r.valorAdicional.toFixed(0)}</td>
+      <td><strong>R$ ${r.total.toFixed(0)}</strong></td>
+      <td>${r.emp || ''}</td>
+    </tr>`;
+  }).join('');
+
+  let fuelRows = q.abastecimentos.map(a => {
+    const d = new Date(a.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('pt-BR');
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>R$ ${a.precoLitro.toFixed(2)}</td>
+      <td>${a.litros.toFixed(1)}L</td>
+      <td>R$ ${a.valorTotal.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Planilha ${q.label}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a1a; font-size: 12px; }
+      h1 { font-size: 18px; margin-bottom: 4px; }
+      h2 { font-size: 14px; margin: 20px 0 8px; color: #444; border-bottom: 2px solid #333; padding-bottom: 4px; }
+      .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+      th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; }
+      th { background: #2f5233; color: white; font-size: 11px; }
+      td { font-size: 11px; }
+      .summary { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+      .summary-box { border: 1px solid #ccc; border-radius: 6px; padding: 10px 14px; min-width: 140px; }
+      .summary-box .label { font-size: 10px; color: #666; text-transform: uppercase; }
+      .summary-box .value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+      .highlight-box { background: #e8f5e9; border-color: #4caf50; }
+      .highlight-box .value { color: #2e7d32; }
+    </style>
+  </head><body>
+    <h1>🚛 PLANILHA CAMINHÃO — ${data.config.motorista}</h1>
+    <div class="sub">${q.label} · Placa: ${data.config.placa}</div>
+
+    <h2>Registros de Viagem</h2>
+    <table>
+      <tr><th>Data</th><th>KM Inicial</th><th>KM Final</th><th>Diária</th><th>KM Adic.</th><th>Valor Adic.</th><th>Total</th><th>Emp.</th></tr>
+      ${tableRows}
+    </table>
+
+    ${q.abastecimentos.length > 0 ? `
+    <h2>Abastecimentos</h2>
+    <table>
+      <tr><th>Data</th><th>Preço/Litro</th><th>Litros</th><th>Valor Total</th></tr>
+      ${fuelRows}
+    </table>` : ''}
+
+    <h2>Resumo da Quinzena</h2>
+    <div class="summary">
+      <div class="summary-box highlight-box"><div class="label">Valor Líquido</div><div class="value">R$ ${valorLiquido.toFixed(2)}</div></div>
+      <div class="summary-box"><div class="label">Total Diárias</div><div class="value">R$ ${totalDiarias.toFixed(2)}</div></div>
+      <div class="summary-box"><div class="label">Total Diesel</div><div class="value">R$ ${totalDiesel.toFixed(2)}</div></div>
+      ${adiantamento > 0 ? `<div class="summary-box"><div class="label">Adiantamento</div><div class="value">R$ ${adiantamento.toFixed(2)}</div></div>` : ''}
+      <div class="summary-box"><div class="label">Total Rodado</div><div class="value">${totalRodado.toFixed(0)} km</div></div>
+      <div class="summary-box"><div class="label">Dias Trabalhados</div><div class="value">${q.records.length}</div></div>
+      <div class="summary-box"><div class="label">Média KM Adic./Dia</div><div class="value">${mediaKmAdicional.toFixed(1)}</div></div>
+      <div class="summary-box"><div class="label">Média Diária</div><div class="value">R$ ${mediaDiaria.toFixed(2)}</div></div>
+      ${totalLitros > 0 ? `<div class="summary-box"><div class="label">Média KM/Litro</div><div class="value">${mediaKmLitro.toFixed(2)}</div></div>` : ''}
+    </div>
+  </body></html>`;
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => { printWindow.print(); }, 500);
+}
+
+// ── Config tab ──
+function renderConfig() {
+  return `
+    <div class="card">
+      <div class="card-title">⚙️ Configurações</div>
+      <p class="settings-note">Ajuste os valores padrão. Alterações valem pros próximos registros.</p>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Nome do Motorista</label>
+          <input type="text" id="cfgNome" value="${data.config.motorista}" onchange="saveConfig()">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Placa do Caminhão</label>
+          <input type="text" id="cfgPlaca" value="${data.config.placa}" onchange="saveConfig()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>KM Base (incluso)</label>
+          <input type="number" id="cfgKmBase" value="${data.config.kmBase}" inputmode="numeric" onchange="saveConfig()">
+        </div>
+        <div class="form-group">
+          <label>Valor/KM Adic. (R$)</label>
+          <input type="number" id="cfgValorKm" value="${data.config.valorKm}" step="0.5" inputmode="decimal" onchange="saveConfig()">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Diária Padrão (R$)</label>
+          <input type="number" id="cfgDiaria" value="${data.config.diariaDefault}" inputmode="decimal" onchange="saveConfig()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗑️ Gerenciar Dados</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-danger" onclick="clearCurrentQ()">Limpar Quinzena Atual</button>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-danger" onclick="clearAll()">Apagar Todos os Dados</button>
+      </div>
+    </div>
+  `;
+}
+
+function saveConfig() {
+  data.config.motorista = document.getElementById('cfgNome').value;
+  data.config.placa = document.getElementById('cfgPlaca').value;
+  data.config.kmBase = parseFloat(document.getElementById('cfgKmBase').value) || 100;
+  data.config.valorKm = parseFloat(document.getElementById('cfgValorKm').value) || 2;
+  data.config.diariaDefault = parseFloat(document.getElementById('cfgDiaria').value) || 460;
+  save();
+  document.getElementById('headerPlate').textContent = `${data.config.placa} — ${data.config.motorista}`;
+  toast('Configurações salvas!');
+}
+
+function clearCurrentQ() {
+  if (confirm('Limpar todos os registros dessa quinzena?')) {
+    const q = getQ();
+    if (q) { q.records = []; q.abastecimentos = []; save(); render(); toast('Quinzena limpa!'); }
+  }
+}
+
+function clearAll() {
+  if (confirm('APAGAR TUDO? Essa ação não pode ser desfeita!')) {
+    localStorage.removeItem('caminhao_data');
+    location.reload();
+  }
+}
+
+// ── Init render ──
+render();
+</script>
+</body>
+</html>
