@@ -904,10 +904,23 @@ function renderConfig() {
     </div>
 
     <div class="card">
-      <div class="card-title">🗑️ Gerenciar Dados</div>
-      <div style="margin-top:8px">
-        <button class="btn btn-danger" onclick="clearCurrentQ()">Limpar Quinzena Atual</button>
+      <div class="card-title">📅 Quinzena Atual</div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Nome da Quinzena</label>
+          <input type="text" id="cfgQName" value="${getQ() ? getQ().label : ''}" onchange="renameQ()">
+        </div>
       </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-danger" onclick="clearCurrentQ()">Limpar Registros da Quinzena</button>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-danger" onclick="deleteCurrentQ()">Excluir Quinzena Inteira</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗑️ Dados Gerais</div>
       <div style="margin-top:8px">
         <button class="btn btn-danger" onclick="clearAll()">Apagar Todos os Dados</button>
       </div>
@@ -930,6 +943,31 @@ function clearCurrentQ() {
   if (confirm('Limpar todos os registros dessa quinzena?')) {
     const q = getQ();
     if (q) { q.records = []; q.abastecimentos = []; save(); render(); toast('Quinzena limpa!'); }
+  }
+}
+
+function renameQ() {
+  const q = getQ();
+  if (q) {
+    q.label = document.getElementById('cfgQName').value;
+    save();
+    updateQuinzenaSelect();
+    toast('Quinzena renomeada!');
+  }
+}
+
+function deleteCurrentQ() {
+  if (data.quinzenas.length <= 1) {
+    toast('Não pode excluir a única quinzena!');
+    return;
+  }
+  if (confirm('Excluir essa quinzena inteira com todos os registros?')) {
+    data.quinzenas.splice(data.currentQ, 1);
+    data.currentQ = Math.max(0, data.currentQ - 1);
+    save();
+    updateQuinzenaSelect();
+    render();
+    toast('Quinzena excluída!');
   }
 }
 
