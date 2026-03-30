@@ -405,14 +405,40 @@
 
 <div class="header">
   <h1><span>🚛</span> Planilha do Caminhão</h1>
-  <div class="header-sub" id="headerPlate">CKD2E98 — VILSON</div>
+  <div class="header-sub" id="headerPlate">ABC1D23 — MOTORISTA</div>
 </div>
 
 <div class="config-bar">
   <div class="quinzena-bar" style="width:100%">
     <span>Quinzena:</span>
     <select id="quinzenaSelect" onchange="switchQuinzena()"></select>
-    <button class="btn-new-q" onclick="newQuinzena()">+ Nova</button>
+    <button class="btn-new-q" onclick="showNewQForm()">+ Nova</button>
+  </div>
+</div>
+
+<div id="newQForm" style="display:none;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);">
+  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Nova quinzena</div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <select id="newQHalf" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;">
+      <option value="1">1ª Quinzena (01-15)</option>
+      <option value="2">2ª Quinzena (16-fim)</option>
+    </select>
+    <select id="newQMonth" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;">
+      <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+      <option value="2">Março</option><option value="3">Abril</option>
+      <option value="4">Maio</option><option value="5">Junho</option>
+      <option value="6">Julho</option><option value="7">Agosto</option>
+      <option value="8">Setembro</option><option value="9">Outubro</option>
+      <option value="10">Novembro</option><option value="11">Dezembro</option>
+    </select>
+    <select id="newQYear" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;">
+      <option value="2025">2025</option><option value="2026" selected>2026</option>
+      <option value="2027">2027</option><option value="2028">2028</option>
+    </select>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button class="btn btn-primary btn-small" onclick="createCustomQ()">Criar</button>
+    <button class="btn btn-secondary btn-small" onclick="hideNewQForm()">Cancelar</button>
   </div>
 </div>
 
@@ -586,29 +612,40 @@ function toast(msg) {
 }
 
 // ── Quinzena management ──
-function newQuinzena() {
+function showNewQForm() {
   const now = new Date();
-  const day = now.getDate();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const monthName = now.toLocaleString('pt-BR', { month: 'short' }).replace('.','');
+  document.getElementById('newQMonth').value = now.getMonth();
+  document.getElementById('newQYear').value = now.getFullYear();
+  document.getElementById('newQHalf').value = now.getDate() <= 15 ? '1' : '2';
+  document.getElementById('newQForm').style.display = 'block';
+}
+
+function hideNewQForm() {
+  document.getElementById('newQForm').style.display = 'none';
+}
+
+function createCustomQ() {
+  const half = parseInt(document.getElementById('newQHalf').value);
+  const month = parseInt(document.getElementById('newQMonth').value);
+  const year = parseInt(document.getElementById('newQYear').value);
+  const monthNames = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const monthName = monthNames[month];
   
-  let startDay, endDay, label;
-  if (day <= 15) {
-    startDay = 1; endDay = 15;
+  let label;
+  if (half === 1) {
     label = `1ª Quinz. ${monthName} ${year} (01-15)`;
   } else {
-    startDay = 16;
-    endDay = new Date(year, month + 1, 0).getDate();
+    const endDay = new Date(year, month + 1, 0).getDate();
     label = `2ª Quinz. ${monthName} ${year} (16-${endDay})`;
   }
   
-  data.quinzenas.push({ label, records: [], abastecimentos: [], month: month, year: year, half: day <= 15 ? 1 : 2 });
+  data.quinzenas.push({ label, records: [], abastecimentos: [], month: month, year: year, half: half });
   data.currentQ = data.quinzenas.length - 1;
   save();
   updateQuinzenaSelect();
+  hideNewQForm();
   render();
-  toast('Nova quinzena criada!');
+  toast('Quinzena criada!');
 }
 
 // Loan calculation: parcela 14 vence 15/abr/2026, 15 vence 15/mai/2026, etc.
@@ -642,8 +679,22 @@ function updateQuinzenaSelect() {
 }
 
 // ── Init ──
-if (data.quinzenas.length === 0) newQuinzena();
-else updateQuinzenaSelect();
+if (data.quinzenas.length === 0) {
+  // Auto-create first quinzena based on current date
+  const now = new Date();
+  const half = now.getDate() <= 15 ? 1 : 2;
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const monthNames = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const endDay = new Date(year, month + 1, 0).getDate();
+  const label = half === 1 ? `1ª Quinz. ${monthNames[month]} ${year} (01-15)` : `2ª Quinz. ${monthNames[month]} ${year} (16-${endDay})`;
+  data.quinzenas.push({ label, records: [], abastecimentos: [], month, year, half });
+  data.currentQ = 0;
+  save();
+  updateQuinzenaSelect();
+} else {
+  updateQuinzenaSelect();
+}
 
 function showTab(tab) {
   currentTab = tab;
