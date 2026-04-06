@@ -570,11 +570,13 @@ async function boot() {
   
   // Load local data first (fast)
   loadData();
+  
+  // Try to restore from cloud BEFORE creating default quinzena
+  await loadFromCloud();
+  
+  // Only now create default quinzena if still empty
   initQuinzena();
   render();
-  
-  // Then sync from cloud (async, will re-render if needed)
-  await loadFromCloud();
 }
 
 function encrypt(text) {
@@ -651,7 +653,7 @@ function saveToCloud() {
   }, 1500);
 }
 
-// Load from cloud — always tries to sync
+// Load from cloud — always tries to sync, merges intelligently
 async function loadFromCloud() {
   // First try IDB recovery
   await loadDataFromIDB();
@@ -663,42 +665,54 @@ async function loadFromCloud() {
     if (doc.exists) {
       console.log('Document found in Firebase');
       
-      // Check if local data has any real content
-      let hasLocalData = false;
-      try {
-        const localStr = localStorage.getItem('caminhao_data');
-        if (localStr && localStr !== 'null') {
-          const parsed = JSON.parse(localStr);
-          hasLocalData = parsed.quinzenas && parsed.quinzenas.length > 0;
+      let cloudData;
+      if (doc.data().encrypted) {
+        const decrypted = decrypt(doc.data().data);
+        if (!decrypted) {
+          console.log('Decryption failed');
+          toast('Erro ao descriptografar. Codigo de acesso pode estar errado.');
+          return;
         }
-      } catch(e) { hasLocalData = false; }
+        cloudData = JSON.parse(decrypted);
+      } else {
+        cloudData = JSON.parse(doc.data().data);
+      }
       
-      if (!hasLocalData) {
-        // Local is empty, restore from cloud
-        let cloudData;
-        if (doc.data().encrypted) {
-          const decrypted = decrypt(doc.data().data);
-          if (!decrypted) {
-            console.log('Decryption failed');
-            toast('Erro ao descriptografar. Codigo de acesso pode estar errado.');
-            return;
-          }
-          cloudData = JSON.parse(decrypted);
-        } else {
-          cloudData = JSON.parse(doc.data().data);
-        }
+      // Count real records in each source
+      const localRecords = data.quinzenas ? data.quinzenas.reduce((s, q) => s + (q.records ? q.records.length : 0) + (q.abastecimentos ? q.abastecimentos.length : 0), 0) : 0;
+      const cloudRecords = cloudData.quinzenas ? cloudData.quinzenas.reduce((s, q) => s + (q.records ? q.records.length : 0) + (q.abastecimentos ? q.abastecimentos.length : 0), 0) : 0;
+      
+      console.log('Local records:', localRecords, 'Cloud records:', cloudRecords);
+      
+      if (localRecords === 0 && cloudRecords > 0) {
+        // Local empty, cloud has data — restore from cloud
         data = cloudData;
         localStorage.setItem('caminhao_data', JSON.stringify(data));
         setIDB('caminhao_data', JSON.stringify(data));
         updateQuinzenaSelect();
         render();
         toast('Dados restaurados da nuvem!');
-      } else {
-        console.log('Local data exists, skipping cloud restore');
+      } else if (localRecords > 0 && cloudRecords > localRecords) {
+        // Cloud has more data — cloud wins
+        data = cloudData;
+        localStorage.setItem('caminhao_data', JSON.stringify(data));
+        setIDB('caminhao_data', JSON.stringify(data));
+        updateQuinzenaSelect();
+        render();
+        toast('Dados atualizados da nuvem!');
+      } else if (localRecords > 0 && localRecords >= cloudRecords) {
+        // Local has same or more data — save local to cloud
+        console.log('Local data is up to date, syncing to cloud');
+        saveToCloud();
       }
     } else {
       console.log('No document found for ID:', DEVICE_ID);
-      toast('Nenhum dado encontrado na nuvem para este codigo.');
+      // If we have local data, save it to cloud
+      const localRecords = data.quinzenas ? data.quinzenas.reduce((s, q) => s + (q.records ? q.records.length : 0), 0) : 0;
+      if (localRecords > 0) {
+        saveToCloud();
+        toast('Dados enviados para a nuvem!');
+      }
     }
   } catch(e) { console.log('Cloud load failed:', e); }
 }
@@ -1051,6 +1065,7 @@ function renderRegistros() {
             <div class="record-detail">KM Adic.<strong>${r.kmAdicional} km</strong></div>
           </div>
           <div class="record-actions">
+            <button class="btn btn-small" style="background:var(--blue-bg,#e8f0fe);color:var(--blue,#4285f4)" onclick="editRecord(${i})">Editar</button>
             <button class="btn btn-danger btn-small" onclick="deleteRecord(${i})">Excluir</button>
           </div>
         </div>`;
@@ -1076,6 +1091,7 @@ function renderRegistros() {
             <div class="record-detail">Total<strong>R$ ${a.valorTotal.toFixed(2)}</strong></div>
           </div>
           <div class="record-actions">
+            <button class="btn btn-small" style="background:var(--blue-bg,#e8f0fe);color:var(--blue,#4285f4)" onclick="editFuel(${i})">Editar</button>
             <button class="btn btn-danger btn-small" onclick="deleteFuel(${i})">Excluir</button>
           </div>
         </div>`;
@@ -1116,6 +1132,68 @@ function deleteFuel(i) {
     save(); render();
     toast('Abastecimento excluído');
   }
+}
+
+function editRecord(i) {
+  const r = getQ().records[i];
+  const d = new Date(r.date + 'T12:00:00');
+  const dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+  
+  const newDate = prompt(`Data (AAAA-MM-DD):\nAtual: ${r.date}`, r.date);
+  if (newDate === null) return;
+  
+  const newKmI = prompt(`KM Inicial:\nAtual: ${r.kmInicial}`, r.kmInicial);
+  if (newKmI === null) return;
+  
+  const newKmF = prompt(`KM Final:\nAtual: ${r.kmFinal}`, r.kmFinal);
+  if (newKmF === null) return;
+  
+  const newDiaria = prompt(`Diária (R$):\nAtual: ${r.diaria}`, r.diaria);
+  if (newDiaria === null) return;
+  
+  const kmI = parseFloat(newKmI);
+  const kmF = parseFloat(newKmF);
+  const diaria = parseFloat(newDiaria);
+  
+  if (isNaN(kmI) || isNaN(kmF) || isNaN(diaria)) { toast('Valor inválido!'); return; }
+  
+  r.date = newDate.trim() || r.date;
+  r.kmInicial = kmI;
+  r.kmFinal = kmF;
+  r.diaria = diaria;
+  const kmRodado = kmF - kmI;
+  r.kmAdicional = Math.max(0, kmRodado - data.config.kmBase);
+  r.valorAdicional = r.kmAdicional * data.config.valorKm;
+  r.total = diaria + r.valorAdicional;
+  
+  save(); render();
+  toast('Registro atualizado!');
+}
+
+function editFuel(i) {
+  const a = getQ().abastecimentos[i];
+  
+  const newDate = prompt(`Data (AAAA-MM-DD):\nAtual: ${a.date}`, a.date);
+  if (newDate === null) return;
+  
+  const newPreco = prompt(`Preço por litro (R$):\nAtual: ${a.precoLitro}`, a.precoLitro);
+  if (newPreco === null) return;
+  
+  const newTotal = prompt(`Valor total (R$):\nAtual: ${a.valorTotal}`, a.valorTotal);
+  if (newTotal === null) return;
+  
+  const preco = parseFloat(newPreco);
+  const total = parseFloat(newTotal);
+  
+  if (isNaN(preco) || isNaN(total) || preco <= 0) { toast('Valor inválido!'); return; }
+  
+  a.date = newDate.trim() || a.date;
+  a.precoLitro = preco;
+  a.valorTotal = total;
+  a.litros = total / preco;
+  
+  save(); render();
+  toast('Abastecimento atualizado!');
 }
 
 // ── Resumo tab ──
