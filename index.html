@@ -638,14 +638,17 @@ function save() {
 let cloudSaveTimeout = null;
 function saveToCloud() {
   if (cloudSaveTimeout) clearTimeout(cloudSaveTimeout);
-  cloudSaveTimeout = setTimeout(() => {
-    const encrypted = encrypt(JSON.stringify(data));
-    db.collection('caminhoes').doc(DEVICE_ID).set({
-      data: encrypted,
-      encrypted: true,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(err => console.log('Cloud save failed:', err));
-  }, 2000);
+  cloudSaveTimeout = setTimeout(async () => {
+    try {
+      const encrypted = encrypt(JSON.stringify(data));
+      await db.collection('caminhoes').doc(DEVICE_ID).set({
+        data: encrypted,
+        encrypted: true,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      console.log('Cloud save OK - ID:', DEVICE_ID);
+    } catch(err) { console.log('Cloud save failed:', err); }
+  }, 1500);
 }
 
 // Load from cloud — always tries to sync
@@ -654,17 +657,32 @@ async function loadFromCloud() {
   await loadDataFromIDB();
   
   try {
+    console.log('Loading from cloud with ID:', DEVICE_ID);
     const doc = await db.collection('caminhoes').doc(DEVICE_ID).get();
+    
     if (doc.exists) {
-      const localStr = localStorage.getItem('caminhao_data');
-      const hasLocalData = localStr && localStr !== 'null' && JSON.parse(localStr).quinzenas && JSON.parse(localStr).quinzenas.length > 0;
+      console.log('Document found in Firebase');
+      
+      // Check if local data has any real content
+      let hasLocalData = false;
+      try {
+        const localStr = localStorage.getItem('caminhao_data');
+        if (localStr && localStr !== 'null') {
+          const parsed = JSON.parse(localStr);
+          hasLocalData = parsed.quinzenas && parsed.quinzenas.length > 0;
+        }
+      } catch(e) { hasLocalData = false; }
       
       if (!hasLocalData) {
         // Local is empty, restore from cloud
         let cloudData;
         if (doc.data().encrypted) {
           const decrypted = decrypt(doc.data().data);
-          if (!decrypted) { console.log('Decryption failed'); return; }
+          if (!decrypted) {
+            console.log('Decryption failed');
+            toast('Erro ao descriptografar. Codigo de acesso pode estar errado.');
+            return;
+          }
           cloudData = JSON.parse(decrypted);
         } else {
           cloudData = JSON.parse(doc.data().data);
@@ -675,40 +693,12 @@ async function loadFromCloud() {
         updateQuinzenaSelect();
         render();
         toast('Dados restaurados da nuvem!');
+      } else {
+        console.log('Local data exists, skipping cloud restore');
       }
     } else {
-      // Migration: try to find data from old random device ID
-      const localStr = localStorage.getItem('caminhao_data');
-      if (!localStr || localStr === 'null') {
-        try {
-          const snapshot = await db.collection('caminhoes').get();
-          if (!snapshot.empty) {
-            // Try each doc - find the one with valid data
-            for (const oldDoc of snapshot.docs) {
-              if (oldDoc.id === DEVICE_ID) continue;
-              try {
-                let oldData;
-                if (oldDoc.data().encrypted) {
-                  // Old encryption key won't work, but try unencrypted
-                  const raw = oldDoc.data().data;
-                  try { oldData = JSON.parse(raw); } catch(e) { continue; }
-                } else {
-                  oldData = JSON.parse(oldDoc.data().data);
-                }
-                if (oldData && oldData.quinzenas) {
-                  data = oldData;
-                  localStorage.setItem('caminhao_data', JSON.stringify(data));
-                  saveToCloud(); // Re-save under new ID
-                  updateQuinzenaSelect();
-                  render();
-                  toast('Dados antigos recuperados!');
-                  return;
-                }
-              } catch(e) { continue; }
-            }
-          }
-        } catch(e) { console.log('Migration failed:', e); }
-      }
+      console.log('No document found for ID:', DEVICE_ID);
+      toast('Nenhum dado encontrado na nuvem para este codigo.');
     }
   } catch(e) { console.log('Cloud load failed:', e); }
 }
