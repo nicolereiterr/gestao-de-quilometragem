@@ -844,9 +844,11 @@ function createCustomQ() {
 }
 
 // Loan calculation: parcela 14 vence 15/abr/2026, 15 vence 15/mai/2026, etc.
-// Only applies to 1st quinzena of each month
+// ONLY applies to 2nd quinzena (half === 2) of each month
 function getParcelaInfo(q) {
-  if (!q || !q.half || q.half !== 1) return null;
+  if (!q) return null;
+  const half = parseInt(q.half);
+  if (half !== 2) return null;
   
   // Parcela 14 = april 2026 (month 3), parcela 15 = may 2026, etc.
   const baseMonth = 3; // April = month index 3
