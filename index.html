@@ -1349,9 +1349,10 @@ function gerarPDF(qIndex) {
   const q = data.quinzenas[qi];
   if (!q) return;
 
-  const completos = q.records.filter(r => !r.parcial);
+  const completos = q.records.filter(r => !r.parcial).sort((a,b) => a.date.localeCompare(b.date));
   const totalDiarias = completos.reduce((s, r) => s + r.total, 0);
-  const totalDiesel = q.abastecimentos.reduce((s, a) => s + a.valorTotal, 0);
+  const abastOrdenados = [...q.abastecimentos].sort((a,b) => a.date.localeCompare(b.date));
+  const totalDiesel = abastOrdenados.reduce((s, a) => s + a.valorTotal, 0);
   const adiantamento = data.config.adiantamento || 0;
   const parcela = getParcelaInfo(q);
   const parcelaValor = parcela ? parcela.valor : 0;
@@ -1377,7 +1378,7 @@ function gerarPDF(qIndex) {
     </tr>`;
   }).join('');
 
-  let fuelRows = q.abastecimentos.map(a => {
+  let fuelRows = abastOrdenados.map(a => {
     const d = new Date(a.date + 'T12:00:00');
     const dateStr = d.toLocaleDateString('pt-BR');
     return `<tr>
