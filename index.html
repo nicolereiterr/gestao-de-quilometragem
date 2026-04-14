@@ -615,6 +615,13 @@ function loadData() {
   if (saved && saved !== 'null') {
     try { data = JSON.parse(saved); } catch(e) {}
   }
+  // Garante ordenação dos dados carregados (dados antigos podem estar fora de ordem)
+  if (data.quinzenas) {
+    data.quinzenas.forEach(q => {
+      if (q.records) q.records.sort((a, b) => a.date.localeCompare(b.date));
+      if (q.abastecimentos) q.abastecimentos.sort((a, b) => a.date.localeCompare(b.date));
+    });
+  }
 }
 
 // Try loading from IndexedDB if localStorage was empty
@@ -631,6 +638,11 @@ async function loadDataFromIDB() {
 }
 
 function save() {
+  // Ordena registros e abastecimentos por data (ascendente) antes de salvar
+  data.quinzenas.forEach(q => {
+    if (q.records) q.records.sort((a, b) => a.date.localeCompare(b.date));
+    if (q.abastecimentos) q.abastecimentos.sort((a, b) => a.date.localeCompare(b.date));
+  });
   localStorage.setItem('caminhao_data', JSON.stringify(data));
   setIDB('caminhao_data', JSON.stringify(data));
   saveToCloud();
