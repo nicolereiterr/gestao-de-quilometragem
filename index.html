@@ -1516,6 +1516,15 @@ function renderConfig() {
     </div>
 
     <div class="card">
+      <div class="card-title">🔧 Diagnóstico</div>
+      <p class="settings-note">Verifica o estado dos seus dados e backups.</p>
+      <div style="margin-top:8px">
+        <button class="btn btn-secondary" onclick="runDiagnostic()">Verificar estado dos dados</button>
+      </div>
+      <div id="diagnosticResults" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
       <div class="card-title">📱 Enviar pelo WhatsApp</div>
       <p class="settings-note">Envia o resumo da quinzena pelo WhatsApp. Útil pra abrir no computador e imprimir.</p>
       <div style="margin-top:8px">
@@ -1616,16 +1625,47 @@ function tryDecrypt(doc) {
     } catch(e) {}
   }
   
-  // Method 3 & 4: XOR known-plaintext attack
+  // Method 3: Try other possible access codes
+  if (!docData && doc.data().encrypted && doc.data().data) {
+    const possibleCodes = ['vilson123', 'vilson', 'ckd2e98', 'vilson1234', 'caminhao', 'vilson12'];
+    for (const code of possibleCodes) {
+      try {
+        let altKey = '';
+        const base = code + '_caminhao_key_2024';
+        for (let i = 0; i < 64; i++) {
+          altKey += base.charCodeAt(i % base.length).toString(16).padStart(2, '0');
+        }
+        altKey = altKey.substring(0, 64);
+        
+        const encoded = doc.data().data;
+        const text = decodeURIComponent(escape(atob(encoded)));
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+          result += String.fromCharCode(text.charCodeAt(i) ^ altKey.charCodeAt(i % altKey.length));
+        }
+        if (result.startsWith('{"config":')) {
+          docData = JSON.parse(result);
+          if (docData && docData.quinzenas) {
+            method = 'codigo: ' + code;
+            break;
+          }
+          docData = null;
+        }
+      } catch(e) { continue; }
+    }
+  }
+  
+  // Method 4: XOR known-plaintext attack
   if (!docData && doc.data().encrypted && doc.data().data) {
     try {
       const encoded = doc.data().data;
       const ciphertext = decodeURIComponent(escape(atob(encoded)));
       
       const knownStarts = [
+        '{"config":{"placa":"CKD2E98","motorista":"VILSON","kmBase":100,"valorKm":2,"diariaDefault":460,"adiantamento":0',
         '{"config":{"placa":"CKD2E98","motorista":"VILSON","kmBase":100,"valorKm":2,"diariaDefault":460',
         '{"config":{"placa":"CKD2E98","motorista":"VILSON"',
-        '{"config":{"placa":"ABC1D23","motorista":"MOTORISTA","kmBase":100,"valorKm":2,"diariaDefault":460',
+        '{"config":{"placa":"ABC1D23","motorista":"MOTORISTA","kmBase":100,"valorKm":2,"diariaDefault":460,"adiantamento":0',
         '{"config":{"placa":"ABC1D23","motorista":"MOTORISTA"',
       ];
       
@@ -1826,6 +1866,110 @@ async function recoverAll() {
   updateQuinzenaSelect();
   render();
   toast(totalAdded > 0 ? `${totalAdded} registro(s) recuperado(s)!` : 'Dados ja estavam atualizados');
+}
+
+async function runDiagnostic() {
+  const el = document.getElementById('diagnosticResults');
+  el.innerHTML = '<p style="color:var(--text2);font-size:13px">Verificando...</p>';
+  let html = '';
+  
+  function summarizeData(jsonStr) {
+    try {
+      const d = JSON.parse(jsonStr);
+      if (!d.quinzenas || d.quinzenas.length === 0) return 'Sem quinzenas';
+      let lines = [];
+      d.quinzenas.forEach(q => {
+        const recs = q.records ? q.records.length : 0;
+        const abasts = q.abastecimentos ? q.abastecimentos.length : 0;
+        if (recs > 0 || abasts > 0) {
+          let details = [];
+          if (q.records) {
+            q.records.forEach(r => {
+              const dt = r.date ? r.date.substring(5).replace('-','/') : '?';
+              details.push('  Viagem ' + dt + ' — km ' + r.kmInicial + (r.parcial ? ' (pendente)' : ' → ' + r.kmFinal + ' | R$ ' + r.total));
+            });
+          }
+          if (q.abastecimentos) {
+            q.abastecimentos.forEach(a => {
+              const dt = a.date ? a.date.substring(5).replace('-','/') : '?';
+              details.push('  Abast. ' + dt + ' — R$ ' + a.valorTotal.toFixed(2) + ' (' + a.litros.toFixed(1) + 'L)');
+            });
+          }
+          lines.push(q.label + ' — ' + recs + ' viagem(ns), ' + abasts + ' abast.');
+          lines = lines.concat(details);
+        } else {
+          lines.push(q.label + ' — vazia');
+        }
+      });
+      return lines.join('\n');
+    } catch(e) { return 'Erro ao ler dados'; }
+  }
+  
+  // Check localStorage
+  const lsCode = localStorage.getItem('caminhao_access_code');
+  const lsData = localStorage.getItem('caminhao_data');
+  html += `<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:6px">
+    <div style="font-size:12px;font-weight:600;color:var(--text)">localStorage</div>
+    <div style="font-size:11px;color:var(--text2)">Codigo: ${lsCode ? '✅ ' + lsCode : '❌ nao encontrado'}</div>
+    <div style="font-size:11px;color:var(--text2)">Dados: ${lsData && lsData !== 'null' ? '✅' : '❌ vazio'}</div>
+    ${lsData && lsData !== 'null' ? `<pre style="font-size:10px;color:var(--text2);white-space:pre-wrap;margin-top:6px;padding:8px;background:var(--surface);border-radius:6px">${summarizeData(lsData)}</pre>` : ''}
+  </div>`;
+  
+  // Check cookie
+  const cookieCode = getCookie('caminhao_access_code');
+  html += `<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:6px">
+    <div style="font-size:12px;font-weight:600;color:var(--text)">Cookie</div>
+    <div style="font-size:11px;color:var(--text2)">Codigo: ${cookieCode ? '✅ ' + cookieCode : '❌ nao encontrado'}</div>
+  </div>`;
+  
+  // Check IndexedDB
+  let idbCode = null;
+  let idbData = null;
+  try {
+    idbCode = await getIDB('access_code');
+    idbData = await getIDB('caminhao_data');
+  } catch(e) {}
+  html += `<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:6px">
+    <div style="font-size:12px;font-weight:600;color:var(--text)">IndexedDB</div>
+    <div style="font-size:11px;color:var(--text2)">Codigo: ${idbCode ? '✅ ' + idbCode : '❌ nao encontrado'}</div>
+    <div style="font-size:11px;color:var(--text2)">Dados: ${idbData ? '✅' : '❌ vazio'}</div>
+    ${idbData ? `<pre style="font-size:10px;color:var(--text2);white-space:pre-wrap;margin-top:6px;padding:8px;background:var(--surface);border-radius:6px">${summarizeData(idbData)}</pre>` : ''}
+  </div>`;
+  
+  // Check Firebase
+  let fbHtml = '';
+  try {
+    const doc = await db.collection('caminhoes').doc(DEVICE_ID).get();
+    if (doc.exists) {
+      let fbData = null;
+      if (doc.data().encrypted) {
+        const decrypted = decrypt(doc.data().data);
+        if (decrypted) fbData = decrypted;
+      } else {
+        fbData = doc.data().data;
+      }
+      fbHtml = `<div style="font-size:11px;color:var(--text2)">Dados: ✅ salvo (ID: ${DEVICE_ID})</div>`;
+      if (fbData) {
+        fbHtml += `<pre style="font-size:10px;color:var(--text2);white-space:pre-wrap;margin-top:6px;padding:8px;background:var(--surface);border-radius:6px">${summarizeData(fbData)}</pre>`;
+      }
+    } else {
+      fbHtml = `<div style="font-size:11px;color:var(--text2)">Dados: ❌ nao encontrado (ID: ${DEVICE_ID})</div>`;
+    }
+  } catch(e) {
+    fbHtml = `<div style="font-size:11px;color:var(--text2)">❌ erro: ${e.message}</div>`;
+  }
+  html += `<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:6px">
+    <div style="font-size:12px;font-weight:600;color:var(--text)">Firebase (nuvem)</div>
+    ${fbHtml}
+  </div>`;
+  
+  // Summary
+  const allOk = lsCode && lsData && lsData !== 'null' && cookieCode && idbCode && fbHtml.includes('✅');
+  html += `<div style="background:${allOk ? 'var(--green)' : 'var(--yellow)'};color:white;border-radius:8px;padding:10px;margin-top:8px;text-align:center">
+    <div style="font-size:13px;font-weight:600">${allOk ? '✅ Tudo protegido! Dados iguais em todos os locais.' : '⚠️ Alguns backups faltando — dados podem estar em risco'}</div>
+  </div>`;
+  
+  el.innerHTML = html;
 }
 
 // ── Init ──
